@@ -1,0 +1,33 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Pivot loop: two arrows circling a central node = traffic routed through the device. -->
+    <!-- Right-hand arc (flows downward) -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M60.2,30.8 A24,24 0 0 1 60.2,77.2" />
+    <!-- Left-hand arc (flows upward) -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M47.8,77.2 A24,24 0 0 1 47.8,30.8" />
+    <!-- Arrowhead at the bottom (right arc) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M52.5,79.3 L58.9,72.4 L61.5,82.0 Z" />
+    <!-- Arrowhead at the top (left arc) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M55.5,28.7 L49.1,35.6 L46.5,26.0 Z" />
+    <!-- Central node (the phone/pivot point) -->
+    <path
+        android:fillColor="#FFFFCA28"
+        android:pathData="M49.5,54 a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0 Z" />
+</vector>
