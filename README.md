@@ -23,6 +23,8 @@ apps on phone ─▶ VPN capture ─▶ upstream proxy (Burp) ─▶ phone's egr
 The app is pure Kotlin + Jetpack Compose with **no custom native binaries** — the
 tun↔SOCKS bridge is a userspace TCP/IP stack written in Kotlin.
 
+The app uses code from [SocksDroid](https://github.com/bndeff/socksdroid) and [MicroSocks](https://github.com/rofl0r/microsocks), but translated into Kotlin.
+
 > Security note: this is a tool for **authorized** testing of devices and networks
 > you own or are permitted to test. A VPN that captures all traffic and routes it
 > through a proxy is powerful — use it responsibly.
