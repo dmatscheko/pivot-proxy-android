@@ -277,6 +277,7 @@ private fun MainScreen(
     var egressUser by remember { mutableStateOf("") }
     var egressPass by remember { mutableStateOf("") }
     var startOnBoot by remember { mutableStateOf(false) }
+    var startVpnOnBoot by remember { mutableStateOf(false) }
     // VPN
     var upstreamHost by remember { mutableStateOf("127.0.0.1") }
     var upstreamPort by remember { mutableStateOf("8080") }
@@ -301,6 +302,7 @@ private fun MainScreen(
         egressUser = s.egressUsername
         egressPass = s.egressPassword
         startOnBoot = s.startEgressOnBoot
+        startVpnOnBoot = s.startVpnOnBoot
         upstreamHost = s.upstreamHost
         upstreamPort = s.upstreamPort.toString()
         upstreamType = s.upstreamType
@@ -589,12 +591,21 @@ private fun MainScreen(
 
                 Tab.OPTIONS -> {
                     Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp)) {
+                        Column(
+                            Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
                             CheckboxRow(
                                 label = "Start egress proxy on boot",
                                 checked = startOnBoot,
-                                subtitle = "The VPN cannot auto-start (it needs user consent).",
                             ) { startOnBoot = it; persist { s -> s.copy(startEgressOnBoot = it) } }
+                            CheckboxRow(
+                                label = "Start VPN capture on boot",
+                                checked = startVpnOnBoot,
+                                subtitle = "The consent dialog can't appear at boot, so if it isn't granted " +
+                                    "yet, auto-start is skipped — open the app once and start the " +
+                                    "VPN to grant it. After that, boot-start runs on its own.",
+                            ) { startVpnOnBoot = it; persist { s -> s.copy(startVpnOnBoot = it) } }
                         }
                     }
                     BatteryOptimizationCard()

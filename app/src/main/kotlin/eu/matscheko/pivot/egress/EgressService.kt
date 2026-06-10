@@ -9,7 +9,9 @@ import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
 import android.os.Binder
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.lifecycle.LifecycleService
@@ -50,6 +52,23 @@ class EgressService : LifecycleService() {
 
     private var server: Socks5Server? = null
     private var connectionsJob: Job? = null
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    /** Remaining 1s re-posts; refilled by [updateNotification], drained by [notifyRunnable]. */
+    private var notifyRepostsLeft = 0
+
+    /** Posts the current state, then re-arms itself each second until the budget runs out. */
+    private val notifyRunnable = object : Runnable {
+        override fun run() {
+            getSystemService(NotificationManager::class.java)
+                .notify(NOTIFICATION_ID, buildNotification(_state.value))
+            if (notifyRepostsLeft > 0) {
+                notifyRepostsLeft--
+                mainHandler.postDelayed(this, NOTIFY_REPOST_INTERVAL_MS)
+            }
+        }
+    }
 
     inner class LocalBinder : Binder() {
         val service: EgressService get() = this@EgressService
@@ -148,6 +167,7 @@ class EgressService : LifecycleService() {
     private fun stopServer() {
         connectionsJob?.cancel()
         connectionsJob = null
+        mainHandler.removeCallbacks(notifyRunnable)
         server?.stop()
         server = null
         _state.value = ServerState.Off
@@ -157,6 +177,7 @@ class EgressService : LifecycleService() {
 
     override fun onDestroy() {
         connectionsJob?.cancel()
+        mainHandler.removeCallbacks(notifyRunnable)
         server?.stop()
         server = null
         super.onDestroy()
@@ -172,8 +193,14 @@ class EgressService : LifecycleService() {
     }
 
     private fun updateNotification() {
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.notify(NOTIFICATION_ID, buildNotification(_state.value))
+        // Post now, then re-post once a second for ~20s. Connection-count updates
+        // normally re-post often enough to refresh past the platform's ~10s
+        // background-start notification deferral window on their own, but the timed
+        // re-posts guarantee the running state surfaces even when no app ever connects
+        // (e.g. a boot start).
+        mainHandler.removeCallbacks(notifyRunnable)
+        notifyRepostsLeft = NOTIFY_REPOST_COUNT
+        notifyRunnable.run()
     }
 
     private fun buildNotification(state: ServerState): Notification {
@@ -232,5 +259,10 @@ class EgressService : LifecycleService() {
         const val ACTION_STOP = "eu.matscheko.pivot.egress.action.STOP"
         private const val CHANNEL_ID = "egress_status"
         private const val NOTIFICATION_ID = 1
+        // Re-post the notification once a second for ~20s after a state change, so it
+        // refreshes as soon as the platform's ~10s background-start (boot) FGS
+        // notification deferral window lifts.
+        private const val NOTIFY_REPOST_INTERVAL_MS = 1_000L
+        private const val NOTIFY_REPOST_COUNT = 20
     }
 }

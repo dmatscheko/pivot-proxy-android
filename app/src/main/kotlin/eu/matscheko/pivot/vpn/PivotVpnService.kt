@@ -10,7 +10,9 @@ import android.net.ConnectivityManager
 import android.net.VpnService
 import android.os.Binder
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -60,6 +62,33 @@ import java.net.InetSocketAddress
 class PivotVpnService : VpnService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * Drives notification re-posts on the main thread (see [updateNotification]).
+     *
+     * A service started while the app is in the background — a boot auto-start — has
+     * its foreground notification held by the platform for ~10s, and an update posted
+     * during that window is captured stale unless something re-posts after it. The VPN
+     * transitions to "Running" exactly once, well inside that window, so without later
+     * re-posts the notification stays frozen on "Starting…". (The egress service only
+     * escapes this naturally when its connection-count updates re-post past the window.)
+     */
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    /** Remaining 1s re-posts; refilled by [updateNotification], drained by [notifyRunnable]. */
+    private var notifyRepostsLeft = 0
+
+    /** Posts the current state, then re-arms itself each second until the budget runs out. */
+    private val notifyRunnable = object : Runnable {
+        override fun run() {
+            getSystemService(NotificationManager::class.java)
+                .notify(NOTIFICATION_ID, buildNotification(_state.value))
+            if (notifyRepostsLeft > 0) {
+                notifyRepostsLeft--
+                mainHandler.postDelayed(this, NOTIFY_REPOST_INTERVAL_MS)
+            }
+        }
+    }
 
     private val binder = LocalBinder()
     private val _state = MutableStateFlow<VpnState>(VpnState.Off)
@@ -342,6 +371,9 @@ class PivotVpnService : VpnService() {
     private fun stopVpn() {
         running = false
         VpnProtector.service = null
+        // Drop any queued notification posts so a late startForeground can't re-promote
+        // the service to the foreground after we've torn it down below.
+        mainHandler.removeCallbacksAndMessages(null)
 
         // Stopping the stack closes the tun fd it owns. If the stack never started
         // (e.g. an error between establish() and start()), close the fd ourselves.
@@ -377,8 +409,15 @@ class PivotVpnService : VpnService() {
     }
 
     private fun updateNotification() {
-        getSystemService(NotificationManager::class.java)
-            .notify(NOTIFICATION_ID, buildNotification(_state.value))
+        // Post now, synchronously on the calling thread: this keeps the "Starting…" set
+        // during onStartCommand inside the platform's background-start notification
+        // snapshot (a handler.post would defer it past the snapshot, leaving the stale
+        // "Stopped"). The immediate post is dropped while the app is backgrounded, so
+        // also re-post once a second for ~20s, which refreshes the notification the
+        // moment the ~10s deferral window lifts.
+        mainHandler.removeCallbacks(notifyRunnable)
+        notifyRepostsLeft = NOTIFY_REPOST_COUNT
+        notifyRunnable.run()
     }
 
     private fun buildNotification(state: VpnState): Notification {
@@ -442,6 +481,11 @@ class PivotVpnService : VpnService() {
         private const val NOTIFICATION_ID = 2
 
         private const val MTU = 1500
+        // Re-post the notification once a second for ~20s after a state change, so it
+        // refreshes as soon as the platform's ~10s background-start (boot) FGS
+        // notification deferral window lifts.
+        private const val NOTIFY_REPOST_INTERVAL_MS = 1_000L
+        private const val NOTIFY_REPOST_COUNT = 20
         private const val DNS_QUERY_TIMEOUT_MS = 5_000
         private const val LOCAL_PROXY_PORT = 1081
         private const val TUN_ADDR = "26.26.26.1"

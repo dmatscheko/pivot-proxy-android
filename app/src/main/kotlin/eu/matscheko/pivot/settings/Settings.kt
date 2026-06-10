@@ -56,6 +56,10 @@ data class AppSettings(
     val appList: Set<String> = emptySet(),
     // Lifecycle
     val startEgressOnBoot: Boolean = false,
+    // Opportunistic VPN auto-start: only fires at boot when VpnService consent is
+    // already granted (VpnService.prepare() == null); otherwise it is skipped, since
+    // the consent dialog cannot be shown from a boot receiver.
+    val startVpnOnBoot: Boolean = false,
 ) {
     companion object {
         const val DEFAULT_EGRESS_PORT = 1080
@@ -96,6 +100,7 @@ class SettingsRepository(context: Context) {
             prefs[Keys.APP_FILTER_MODE] = next.appFilterMode
             prefs[Keys.APP_LIST] = next.appList
             prefs[Keys.START_EGRESS_ON_BOOT] = next.startEgressOnBoot
+            prefs[Keys.START_VPN_ON_BOOT] = next.startVpnOnBoot
         }
     }
 
@@ -120,6 +125,7 @@ class SettingsRepository(context: Context) {
         appFilterMode = this[Keys.APP_FILTER_MODE] ?: AppSettings.APP_FILTER_OFF,
         appList = this[Keys.APP_LIST] ?: emptySet(),
         startEgressOnBoot = this[Keys.START_EGRESS_ON_BOOT] ?: false,
+        startVpnOnBoot = this[Keys.START_VPN_ON_BOOT] ?: false,
     )
 
     private object Keys {
@@ -143,5 +149,6 @@ class SettingsRepository(context: Context) {
         val APP_FILTER_MODE = stringPreferencesKey("app_filter_mode")
         val APP_LIST = stringSetPreferencesKey("app_list")
         val START_EGRESS_ON_BOOT = booleanPreferencesKey("start_egress_on_boot")
+        val START_VPN_ON_BOOT = booleanPreferencesKey("start_vpn_on_boot")
     }
 }
