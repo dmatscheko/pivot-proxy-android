@@ -102,7 +102,6 @@ import eu.matscheko.pivot.vpn.PivotVpnService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -270,6 +269,8 @@ private fun MainScreen(
     var showAbout by remember { mutableStateOf(false) }
 
     var loaded by remember { mutableStateOf(false) }
+    // Last settings we observed/wrote, used to ignore the echo of our own persists.
+    var current by remember { mutableStateOf<AppSettings?>(null) }
     // Egress
     var egressPort by remember { mutableStateOf("1080") }
     var egressBind by remember { mutableStateOf(ADDRESS_ALL) }
@@ -294,8 +295,7 @@ private fun MainScreen(
     var appList by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showAppPicker by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        val s = settingsRepo.settings.first()
+    fun hydrate(s: AppSettings) {
         egressPort = s.egressPort.toString()
         egressBind = s.egressBindAddress
         egressAuth = s.egressAuthEnabled
@@ -316,10 +316,23 @@ private fun MainScreen(
         directDnsPort = s.directDnsPort.toString()
         appFilterMode = s.appFilterMode
         appList = s.appList
-        loaded = true
+    }
+
+    // Observe settings so external changes (e.g. the adb ControlReceiver) reflect live.
+    // Emissions that match what we last wrote ([current]) are skipped, so re-hydrating
+    // never clobbers an in-progress edit on the echo of our own persist.
+    LaunchedEffect(Unit) {
+        settingsRepo.settings.collect { s ->
+            if (s != current) {
+                current = s
+                hydrate(s)
+            }
+            loaded = true
+        }
     }
 
     fun persist(transform: (AppSettings) -> AppSettings) {
+        current = current?.let(transform)
         scope.launch { settingsRepo.update(transform) }
     }
 

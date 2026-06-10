@@ -65,6 +65,23 @@
             </intent-filter>
         </receiver>
 
+        <!-- adb/automation control surface. Exported but gated by DUMP, which only the
+             shell user (adb) and the system hold — ordinary apps can't obtain it — so in
+             practice only `adb shell am broadcast …` can drive it. -->
+        <receiver
+            android:name=".control.ControlReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="eu.matscheko.pivot.action.CONFIGURE" />
+                <action android:name="eu.matscheko.pivot.action.EGRESS_START" />
+                <action android:name="eu.matscheko.pivot.action.EGRESS_STOP" />
+                <action android:name="eu.matscheko.pivot.action.VPN_START" />
+                <action android:name="eu.matscheko.pivot.action.VPN_STOP" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

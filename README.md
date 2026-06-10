@@ -119,7 +119,7 @@ The app has four tabs along the bottom:
 | **Setup** | A live status dashboard (Egress + VPN) and the pivot how-to. |
 | **Egress** | The on-device SOCKS5 proxy that finally egresses traffic. Master switch + port/bind/auth. |
 | **VPN** | The capturing VPN: the upstream proxy (Burp Suite), proxy type, DNS mode, domain bypass, and per-app capture. Master switch. |
-| **Options** | Start-the-egress-proxy-on-boot, and a shortcut to battery-optimization settings. |
+| **Options** | Start the egress proxy and/or VPN capture on boot, and a shortcut to battery-optimization settings. |
 
 The Egress and VPN nav icons carry a small status dot: **green = running**,
 **grey = stopped**.
@@ -265,6 +265,31 @@ The two connections between the phone and the computer (Burp Suite) need a netwo
   capture. This is mandatory for any VPN app.
 - **Battery optimization** (optional) — some vendors kill background services; the
   Options tab links you to the exclusion setting if a service keeps stopping.
+
+---
+
+## Automation (adb control)
+
+Both engines can be configured and toggled from an attached PC via `adb` broadcasts —
+handy for scripting an engagement or integrating with other tools:
+
+```bash
+PKG=eu.matscheko.pivot
+RCV=$PKG/.control.ControlReceiver
+
+# Configure the VPN's upstream proxy and start capturing, in one command
+adb shell am broadcast -n $RCV -a eu.matscheko.pivot.action.VPN_START \
+  --es upstream_host 127.0.0.1 --ei upstream_port 8080 --es upstream_type http
+
+adb shell am broadcast -n $RCV -a eu.matscheko.pivot.action.EGRESS_STOP
+```
+
+The control receiver is gated by `android.permission.DUMP`, which only adb/`shell` and
+the system hold — no other installed app can drive it. Config changes also reflect live
+in the app if it's open.
+
+See **[docs/adb-control.md](docs/adb-control.md)** for the full action list, every
+configuration key, examples, and the consent/timing caveats.
 
 ---
 
