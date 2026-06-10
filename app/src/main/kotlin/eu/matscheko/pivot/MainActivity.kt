@@ -15,6 +15,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -43,12 +45,14 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.NavigationBar
@@ -77,14 +81,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import eu.matscheko.pivot.egress.EgressService
@@ -259,6 +267,7 @@ private fun MainScreen(
     val bindOptions = remember { NetUtils.bindOptions() }
 
     var selectedTab by remember { mutableIntStateOf(Tab.SETUP.ordinal) }
+    var showAbout by remember { mutableStateOf(false) }
 
     var loaded by remember { mutableStateOf(false) }
     // Egress
@@ -315,8 +324,31 @@ private fun MainScreen(
     val egressRunning = egress is ServerState.Running || egress is ServerState.Starting
     val vpnRunning = vpn is VpnState.Running || vpn is VpnState.Starting
 
+    if (showAbout) {
+        AboutScreen(onBack = { showAbout = false })
+        return
+    }
+
     Scaffold(
-        topBar = { TopAppBar(title = { Text(Tab.entries[selectedTab].title) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(Tab.entries[selectedTab].title) },
+                actions = {
+                    if (Tab.entries[selectedTab] == Tab.OPTIONS) {
+                        var menuOpen by remember { mutableStateOf(false) }
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(painterResource(R.drawable.ic_more_vert), contentDescription = "More")
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text("About") },
+                                onClick = { menuOpen = false; showAbout = true },
+                            )
+                        }
+                    }
+                },
+            )
+        },
         bottomBar = {
             NavigationBar {
                 Tab.entries.forEach { tab ->
@@ -568,6 +600,96 @@ private fun MainScreen(
                     BatteryOptimizationCard()
                 }
             }
+        }
+    }
+}
+
+private const val PIVOT_LICENSE =
+    "Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). " +
+        "This program is free software: you can redistribute it and/or modify it under the " +
+        "terms of that license, and it comes with NO WARRANTY."
+
+private const val PIVOT_DISCLAIMER =
+    "This app captures and proxies network traffic for authorised security testing and " +
+        "development only. The author is not liable for any damage, data loss, or misuse " +
+        "arising from its use. Only use it on networks and devices you are permitted to test."
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AboutScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    // The launcher icon is an adaptive-icon XML that painterResource can't load, so
+    // composite the real installed icon to a bitmap instead (same trick as elsewhere).
+    val iconBitmap = remember(context) {
+        context.packageManager.getApplicationIcon(context.packageName)
+            .toBitmap(192, 192).asImageBitmap()
+    }
+    val version = remember(context) {
+        runCatching {
+            val pkg = context.packageManager.getPackageInfo(context.packageName, 0)
+            val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                pkg.longVersionCode
+            } else {
+                @Suppress("DEPRECATION") pkg.versionCode.toLong()
+            }
+            "Version ${pkg.versionName} ($code)"
+        }.getOrDefault("")
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("About this app") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Image(
+                bitmap = iconBitmap,
+                contentDescription = null,
+                modifier = Modifier.size(96.dp).padding(bottom = 8.dp),
+            )
+            Text("Pivot Proxy", style = MaterialTheme.typography.headlineMedium)
+            if (version.isNotEmpty()) {
+                Text(version, style = MaterialTheme.typography.bodyMedium)
+            }
+            Text(
+                "Copyright © 2026 Matscheko — built in Kotlin & Jetpack Compose",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+            Text(
+                PIVOT_LICENSE,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+            Text(
+                PIVOT_DISCLAIMER,
+                style = MaterialTheme.typography.bodySmall,
+                fontStyle = FontStyle.Italic,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
