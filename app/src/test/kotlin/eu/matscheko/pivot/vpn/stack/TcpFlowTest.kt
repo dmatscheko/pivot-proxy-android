@@ -243,10 +243,19 @@ class TcpFlowTest {
         var off = 0
         while (off < total) {
             val len = minOf(mss, total - off)
-            feed(flow, TcpFlag.ACK or TcpFlag.PSH, seq, serverIss + 1, payload.copyOfRange(off, off + len))
-            // Wait for the stack to ACK this segment before sending the next, so we
-            // exercise the receive path's ACKing rather than blasting blindly.
-            awaitAck(seq + len)
+            val seg = payload.copyOfRange(off, off + len)
+            // Send, then wait for the stack to ACK before moving on, so we exercise the
+            // receive path's ACKing rather than blasting blindly. A full receive window
+            // legitimately drops the segment with no ACK (correct flow control), so —
+            // like a real TCP sender — retransmit until it's acknowledged instead of
+            // treating the silence as failure. This keeps the test deterministic on slow
+            // CI, where the upstream socket drains in bursts rather than instantly.
+            feed(flow, TcpFlag.ACK or TcpFlag.PSH, seq, serverIss + 1, seg)
+            var attempts = 0
+            while (!awaitAck(seq + len)) {
+                check(attempts++ < 100) { "ACK for ${seq + len} never arrived" }
+                feed(flow, TcpFlag.ACK or TcpFlag.PSH, seq, serverIss + 1, seg)
+            }
             seq += len
             off += len
         }
@@ -259,14 +268,20 @@ class TcpFlowTest {
         server.close()
     }
 
-    private fun awaitAck(minAck: Long) {
-        val deadline = System.currentTimeMillis() + 5000
-        while (System.currentTimeMillis() < deadline) {
-            val pkt = captured.poll(5, TimeUnit.SECONDS) ?: error("no ACK")
+    /**
+     * Wait briefly for a cumulative ACK reaching [minAck]; returns false on timeout.
+     * A timeout isn't necessarily an error — a segment dropped against a full receive
+     * window produces no ACK — so the caller retransmits, mirroring a real TCP sender.
+     */
+    private fun awaitAck(minAck: Long): Boolean {
+        val deadline = System.currentTimeMillis() + 1000
+        while (true) {
+            val wait = deadline - System.currentTimeMillis()
+            if (wait <= 0) return false
+            val pkt = captured.poll(wait, TimeUnit.MILLISECONDS) ?: return false
             val tcp = parse(pkt)
-            if (tcp.has(TcpFlag.ACK) && tcp.ack >= minAck) return
+            if (tcp.has(TcpFlag.ACK) && tcp.ack >= minAck) return true
         }
-        error("ACK for $minAck never arrived")
     }
 
     @Test
