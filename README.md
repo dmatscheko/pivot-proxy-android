@@ -128,7 +128,7 @@ The Egress and VPN nav icons carry a small status dot: **green = running**,
 
 | Setup | Egress | VPN | Options |
 | --- | --- | --- | --- |
-| <a href="docs/screenshots/setup.jpg"><img src="docs/screenshots/setup.jpg" alt="Setup tab full scrolling screenshot" width="120"></a> | <a href="docs/screenshots/egress.jpg"><img src="docs/screenshots/egress.jpg" alt="Egress tab full scrolling screenshot" width="120"></a> | <a href="docs/screenshots/vpn.jpg"><img src="docs/screenshots/vpn.jpg" alt="VPN tab full scrolling screenshot" width="120"></a> | <a href="docs/screenshots/options.jpg"><img src="docs/screenshots/options.jpg" alt="Options tab full scrolling screenshot" width="120"></a> |
+| <a href="docs/screenshots/setup.jpg"><img src="docs/screenshots/setup.jpg" alt="Setup tab screenshot" width="120"></a> | <a href="docs/screenshots/egress.jpg"><img src="docs/screenshots/egress.jpg" alt="Egress tab screenshot" width="120"></a> | <a href="docs/screenshots/vpn.jpg"><img src="docs/screenshots/vpn.jpg" alt="VPN tab screenshot" width="120"></a> | <a href="docs/screenshots/options.jpg"><img src="docs/screenshots/options.jpg" alt="Options tab screenshot" width="120"></a> |
 
 ### Setting up the pivot
 
