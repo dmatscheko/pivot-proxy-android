@@ -19,8 +19,11 @@ android {
         applicationId = "eu.matscheko.pivot"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1"
+        // Version is supplied by CI (-PversionName / -PversionCode) so the git tag,
+        // the GitHub Release and the APK can't drift. Local builds fall back to a
+        // "dev" marker rather than a real version number.
+        versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
+        versionName = (project.findProperty("versionName") as String?) ?: "0.0-dev"
     }
 
     signingConfigs {
