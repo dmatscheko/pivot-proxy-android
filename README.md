@@ -84,8 +84,8 @@ $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"
 
 The APK is written to:
 
-- Debug:   `app/build/outputs/apk/debug/app-debug.apk`
-- Release: `app/build/outputs/apk/release/app-release.apk`
+- Debug:   `app/build/outputs/apk/debug/pivot-debug.apk`
+- Release: `app/build/outputs/apk/release/pivot-release.apk`
 
 > A release build is signed with your own keystore if you provide one (see
 > [DEVELOPMENT.md](DEVELOPMENT.md)); otherwise it falls back to the debug key so the
@@ -95,16 +95,28 @@ The APK is written to:
 
 ## Install
 
-### With adb (recommended)
+Grab the latest **`pivot-release.apk`** from the
+[Releases page](https://github.com/dmatscheko/pivot-proxy-android/releases/latest)
+and install it by opening the file on the device ("Install unknown apps"), or via adb:
 
 ```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r pivot-release.apk
 ```
 
-### Directly on the device
+Prefer to build it yourself? A debug build can be built and installed in one step:
 
-Copy the APK to the device and open it. You may need to allow installing apps from
-your file manager / browser ("Install unknown apps") the first time.
+```sh
+./gradlew installDebug
+```
+
+To install with adb instead, build the APK first, then install it:
+
+```bash
+./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/pivot-debug.apk
+```
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for the toolchain and architecture.
 
 This app is **sideloaded** — it is not on the Play Store.
 
@@ -126,9 +138,17 @@ The Egress and VPN nav icons carry a small status dot: **green = running**,
 
 ### Screenshots
 
-| Setup | Egress | VPN | Options |
-| --- | --- | --- | --- |
-| <a href="docs/screenshots/setup.jpg"><img src="docs/screenshots/setup.jpg" alt="Setup tab screenshot" width="120"></a> | <a href="docs/screenshots/egress.jpg"><img src="docs/screenshots/egress.jpg" alt="Egress tab screenshot" width="120"></a> | <a href="docs/screenshots/vpn.jpg"><img src="docs/screenshots/vpn.jpg" alt="VPN tab screenshot" width="120"></a> | <a href="docs/screenshots/options.jpg"><img src="docs/screenshots/options.jpg" alt="Options tab screenshot" width="120"></a> |
+<p align="center">
+  <a href="docs/screenshots/raw/setup.jpg"><img src="docs/screenshots/setup.jpg" alt="Setup tab — status dashboard and how-to screenshot" width="38%" align="top"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="docs/screenshots/raw/vpn.jpg"><img src="docs/screenshots/vpn.jpg" alt="VPN tab — capture via upstream proxy screenshot" width="38%" align="top"></a>
+</p>
+
+<p align="center">
+  <a href="docs/screenshots/raw/egress.jpg"><img src="docs/screenshots/egress.jpg" alt="Egress tab — on-device SOCKS5 proxy screenshot" width="38%" align="top"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="docs/screenshots/raw/options.jpg"><img src="docs/screenshots/options.jpg" alt="Options tab — boot and battery settings screenshot" width="38%" align="top"></a>
+</p>
 
 ### Setting up the pivot
 

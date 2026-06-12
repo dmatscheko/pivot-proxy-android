@@ -73,6 +73,12 @@ android {
     sourceSets["test"].kotlin.srcDir("src/test/kotlin")
 }
 
+// Name APK outputs after the app rather than the Gradle module, so downloads
+// read "pivot-release.apk" / "pivot-debug.apk" instead of "app-release.apk".
+base {
+    archivesName.set("pivot")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
