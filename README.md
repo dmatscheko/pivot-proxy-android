@@ -21,9 +21,9 @@ apps on phone ─▶ VPN capture ─▶ upstream proxy (Burp) ─▶ phone's egr
 ```
 
 The app is pure Kotlin + Jetpack Compose with **no custom native binaries** — the
-tun↔SOCKS bridge is a userspace TCP/IP stack written in Kotlin.
-
-The app uses code from [SocksDroid](https://github.com/bndeff/socksdroid) and [MicroSocks](https://github.com/rofl0r/microsocks), but translated into Kotlin.
+tun↔SOCKS bridge is a userspace TCP/IP stack written in Kotlin. It uses code from
+[SocksDroid](https://github.com/bndeff/socksdroid) and
+[MicroSocks](https://github.com/rofl0r/microsocks), translated into Kotlin.
 
 > Security note: this is a tool for **authorized** testing of devices and networks
 > you own or are permitted to test. A VPN that captures all traffic and routes it
@@ -31,70 +31,67 @@ The app uses code from [SocksDroid](https://github.com/bndeff/socksdroid) and [M
 
 ---
 
-## Requirements
+## Features
 
-- **JDK 17** (newer JDKs are not yet supported by the build toolchain — see below).
-- The **Android SDK** with platform **API 35** installed.
-- A device or emulator running **Android 7.0 (API 24)** or newer.
+### Screenshots
 
-The easiest way to get all of this is to install **Android Studio**, which bundles a
-compatible JDK 17 and can install the SDK for you. You can then build either from the
-IDE (Run ▶) or from the command line as shown below.
+<p align="center">
+  <a href="docs/screenshots/raw/setup.jpg"><img src="docs/screenshots/setup.jpg" alt="Setup tab — status dashboard and how-to screenshot" width="30%" align="top"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="docs/screenshots/raw/vpn.jpg"><img src="docs/screenshots/vpn.jpg" alt="VPN tab — capture via upstream proxy screenshot" width="30%" align="top"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="docs/screenshots/raw/egress.jpg"><img src="docs/screenshots/egress.jpg" alt="Egress tab — on-device SOCKS5 proxy screenshot" width="30%" align="top"></a>
+</p>
 
----
+### Two engines
 
-## Build
+- **Egress proxy** — an on-device SOCKS5 server that finally egresses captured traffic
+  through the phone's own network interface, so origin servers see the **phone's** IP
+  and DNS is resolved on-device. Configurable port, bind address and auth.
+- **Capturing VPN** — a local `VpnService` that pulls all device traffic through a
+  userspace, pure-Kotlin tun↔SOCKS bridge and forwards it to your upstream inspection
+  proxy (Burp Suite), with DNS-over-SOCKS5.
 
-### 1. Point the build at your Android SDK
+Running both at once **is** the pivot.
 
-Create a file named `local.properties` in the project root:
+### Drive it from four tabs
 
-```properties
-sdk.dir=/absolute/path/to/Android/sdk
-```
+| Tab | What it's for |
+| --- | --- |
+| **Setup** | A live status dashboard (Egress + VPN) and the pivot how-to. |
+| **Egress** | The on-device SOCKS5 proxy that finally egresses traffic. Master switch + port/bind/auth. |
+| **VPN** | The capturing VPN: the upstream proxy (Burp Suite), proxy type, DNS mode, domain bypass, and per-app capture. Master switch. |
+| **Options** | Start the egress proxy and/or VPN capture on boot, and a shortcut to battery-optimization settings. |
 
-(On macOS this is usually `/Users/<you>/Library/Android/sdk`; on Linux
-`/home/<you>/Android/Sdk`; on Windows `C:\\Users\\<you>\\AppData\\Local\\Android\\Sdk`.)
-Android Studio writes this file for you automatically when you open the project.
+The Egress and VPN nav icons carry a small status dot: **green = running**,
+**grey = stopped**.
 
-### 2. Make sure the build uses JDK 17
+### Scope what gets intercepted
+- **Bypass domains** — hosts that connect straight to the internet, skipping the proxy
+  (subdomains match). Handy for a pinned dependency that breaks under interception.
+- **Per-app capture** — capture all apps, only selected apps (just your target), or
+  all-except-selected. Excluded apps never enter the VPN, so their traffic and TLS are
+  untouched.
 
-The build toolchain (Android Gradle Plugin 8.7) requires **JDK 17**. If your system
-default `java` is newer (e.g. JDK 21/24), point the build at a JDK 17 explicitly.
-Android Studio ships one you can reuse:
-
-```bash
-# macOS (Android Studio's bundled JDK):
-export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
-# Linux:
-export JAVA_HOME="/opt/android-studio/jbr"
-# Windows (PowerShell):
-$env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"
-```
-
-### 3. Build the APK
-
-```bash
-# Debug build (recommended for sideloading):
-./gradlew assembleDebug
-
-# Release build (unsigned-by-default; falls back to the debug key if no keystore):
-./gradlew assembleRelease
-```
-
-The APK is written to:
-
-- Debug:   `app/build/outputs/apk/debug/pivot-debug.apk`
-- Release: `app/build/outputs/apk/release/pivot-release.apk`
-
-> A release build is signed with your own keystore if you provide one (see
-> [DEVELOPMENT.md](DEVELOPMENT.md)); otherwise it falls back to the debug key so the
-> APK is still installable for personal/sideload use.
+### Automate from a PC
+- **adb control** — both engines can be configured and toggled from an attached PC via
+  `adb` broadcasts, handy for scripting an engagement. The control receiver is gated by
+  `android.permission.DUMP`, so only adb/`shell` (and the system) can drive it. See
+  **[docs/adb-control.md](docs/adb-control.md)** for the full action list and keys.
 
 ---
+
+## Permissions & notes
+- **Notifications** — both engines run as foreground services with an ongoing
+  notification (Android requires this). Denying it just hides the notification; the
+  proxy/VPN still works.
+- **VPN consent** — Android shows a system dialog the first time you start VPN capture.
+  This is mandatory for any VPN app, and it can't be shown from a broadcast — so start
+  the VPN once from the app before driving it over adb.
+- **Battery optimization** (optional) — some vendors kill background services; the
+  Options tab links you to the exclusion setting if a service keeps stopping.
 
 ## Install
-
 Grab the latest **`pivot-release.apk`** from the
 [Releases page](https://github.com/dmatscheko/pivot-proxy-android/releases/latest)
 and install it by opening the file on the device ("Install unknown apps"), or via adb:
@@ -120,217 +117,14 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for the toolchain and architecture.
 
 This app is **sideloaded** — it is not on the Play Store.
 
----
+## Setting up the pivot
+The short version: start the **Egress** proxy, point the **VPN**'s upstream at your
+Burp proxy, chain Burp back at the phone's egress, then start **VPN capture** —
+traffic then flows apps → VPN → Burp → phone's egress → internet.
 
-## First run & usage
-
-The app has four tabs along the bottom:
-
-| Tab | What it's for |
-| --- | --- |
-| **Setup** | A live status dashboard (Egress + VPN) and the pivot how-to. |
-| **Egress** | The on-device SOCKS5 proxy that finally egresses traffic. Master switch + port/bind/auth. |
-| **VPN** | The capturing VPN: the upstream proxy (Burp Suite), proxy type, DNS mode, domain bypass, and per-app capture. Master switch. |
-| **Options** | Start the egress proxy and/or VPN capture on boot, and a shortcut to battery-optimization settings. |
-
-The Egress and VPN nav icons carry a small status dot: **green = running**,
-**grey = stopped**.
-
-### Screenshots
-
-<p align="center">
-  <a href="docs/screenshots/raw/setup.jpg"><img src="docs/screenshots/setup.jpg" alt="Setup tab — status dashboard and how-to screenshot" width="38%" align="top"></a>
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="docs/screenshots/raw/vpn.jpg"><img src="docs/screenshots/vpn.jpg" alt="VPN tab — capture via upstream proxy screenshot" width="38%" align="top"></a>
-</p>
-
-<p align="center">
-  <a href="docs/screenshots/raw/egress.jpg"><img src="docs/screenshots/egress.jpg" alt="Egress tab — on-device SOCKS5 proxy screenshot" width="38%" align="top"></a>
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="docs/screenshots/raw/options.jpg"><img src="docs/screenshots/options.jpg" alt="Options tab — boot and battery settings screenshot" width="38%" align="top"></a>
-</p>
-
-### Setting up the pivot
-
-1. **Egress tab** → start the **Egress proxy** (default port `1080`).
-2. **VPN tab** → set the **Upstream proxy** to your Burp Suite proxy and choose the
-   **Proxy type**: pick **HTTP/S** for Burp Suite (its proxy listener only accepts
-   HTTP/S, not SOCKS5), or **SOCKS5** for a SOCKS5 upstream. Keep **DNS over SOCKS5**
-   on.
-3. In **Burp**, configure its upstream proxy / SOCKS chaining to point back at the
-   phone's **egress** proxy (see *Reaching the phone* below for the address to use).
-4. **VPN tab** → start **VPN capture** and accept the Android VPN consent dialog.
-
-All device traffic now flows: apps → VPN → Burp → phone's egress proxy → internet,
-with DNS resolved on the egress (phone) side.
-
-> You don't have to use Burp. The "upstream proxy" can be any SOCKS5 or HTTP/S
-> `CONNECT` proxy. Pointing the VPN's upstream (SOCKS5) directly at the local egress
-> proxy gives a pure on-device pivot with no laptop involved.
-
-### Trusting Burp's CA (HTTPS interception)
-
-Burp does TLS man-in-the-middle: it presents its own CA certificate, so HTTPS apps on
-the phone fail with a certificate error until the phone trusts that CA. Export it from
-Burp as **Proxy → Proxy settings → Import / Export CA certificate → "Certificate in
-DER format"** (save it as e.g. `cacert.der`) — the public **certificate only**, *not*
-the P12.
-
-Convert that DER to PEM for `curl` and for the hash step below (the Settings installer
-accepts the DER as-is, so this is only needed for the other methods):
-
-```bash
-openssl x509 -inform DER -in cacert.der -out burp.pem
-```
-
-There is no single no-root switch that makes *every* app trust it; pick by target:
-
-- **System store (root) — trusts all apps.** Install the cert into
-  `/system/etc/security/cacerts/` named by its subject hash. Requires root (or a Magisk
-  "trust user certs" module).
-
-  ```bash
-  # name the cert "<subject_hash>.0", then push it (needs a writable /system)
-  HASH=$(openssl x509 -inform PEM -subject_hash_old -in burp.pem | head -1)
-  cp burp.pem "$HASH.0"
-  adb root && adb remount
-  adb push "$HASH.0" /system/etc/security/cacerts/
-  adb shell chmod 644 "/system/etc/security/cacerts/$HASH.0"
-  adb reboot
-  ```
-
-- **User cert (no root) — older / opted-in apps only.** *Settings → Security →
-  Encryption & credentials → Install a certificate → CA certificate*, then pick the DER
-  file (give it a `.cer`/`.crt` extension). Trusted by the OS, browsers, WebViews, apps
-  targeting **Android 6 (API 23) or older**, and any app that opts into user certs.
-  Apps targeting API 24+ ignore the user store by default.
-
-- **`network-security-config` (no root) — for an in-scope app you can rebuild.** Have
-  the app trust user certs by adding a network-security-config, then install the user
-  cert as above:
-
-  ```xml
-  <network-security-config>
-    <base-config><trust-anchors>
-      <certificates src="system"/>
-      <certificates src="user"/>
-    </trust-anchors></base-config>
-  </network-security-config>
-  ```
-
-  If you can't rebuild it from source, repackage the APK with a tool like `apk-mitm`
-  (adds user-cert trust and strips common pinning) — only for apps you're authorized to
-  modify under the engagement scope.
-
-> Quick check without installing anything: command-line `curl` reads the *system* CA
-> bundle (not the user store), so point it at the cert directly —
-> `curl --cacert burp.pem https://example.com`.
-
-### Scoping what gets intercepted
-
-Two controls on the **VPN** tab let you keep things out of scope (e.g. a pinned
-dependency that breaks under interception, or apps you simply shouldn't touch):
-
-- **Bypass domains** — a list of hosts that connect **straight to the internet**,
-  skipping the proxy entirely. Subdomains match (`example.com` also covers
-  `api.example.com`); one per line. Works in both DNS modes.
-- **Per-app capture** — choose **Capture all apps**, **Only selected apps**
-  (capture just your target), or **All apps except selected** (let a dependency
-  bypass the VPN). Tap **Select apps** to pick them. Excluded apps never enter the
-  VPN, so their traffic and TLS are untouched — useful when an app pins its
-  certificate and can't trust Burp's CA.
-
-> A handy pentest setup: **Only selected apps → your target app**, so Burp sees
-> just that app's traffic and nothing else on the device.
-
-### Reaching the phone
-
-The two connections between the phone and the computer (Burp Suite) need a network path:
-
-- **Phone on Wi-Fi/LAN** that the computer can reach: just use the phone's IP. The VPN
-  upstream is `Burp-IP:8080`, and Burp's chain points at `phone-IP:1080` (the address
-  shown on the Egress tab).
-
-- **Phone on mobile data** (or otherwise not reachable): the phone's external IP is its
-  carrier (often CGNAT) address and is **not reachable** from the computer. Tunnel both
-  directions over USB with `adb` (run these on the computer):
-
-  ```bash
-  # phone → Burp: the phone reaches Burp via its own localhost:8080
-  #   → set the app's VPN upstream proxy to 127.0.0.1:8080 (the default)
-  adb reverse tcp:8080 tcp:8080
-
-  # computer → phone egress: the computer reaches the egress via its localhost:1080
-  #   → set Burp's upstream/SOCKS chain to 127.0.0.1:1080
-  adb forward tcp:1080 tcp:1080
-  ```
-
-  `adb forward` binds only to the computer's `localhost`. To make the egress proxy
-  reachable from other machines (or tools that won't use loopback), re-expose it on all
-  interfaces with `socat`:
-
-  ```bash
-  socat TCP-LISTEN:1080,bind=0.0.0.0,fork,reuseaddr TCP:127.0.0.1:1080
-  ```
-
-> With `adb reverse`/`forward` the app's defaults already line up: VPN upstream
-> `127.0.0.1:8080` and egress `:1080`.
-
-### Permissions
-
-- **Notifications** — both engines run as foreground services with an ongoing
-  notification (Android requires this). The proxy/VPN still works if you deny it; the
-  notification is just hidden.
-- **VPN consent** — Android shows a system dialog the first time you start VPN
-  capture. This is mandatory for any VPN app.
-- **Battery optimization** (optional) — some vendors kill background services; the
-  Options tab links you to the exclusion setting if a service keeps stopping.
-
----
-
-## Automation (adb control)
-
-Both engines can be configured and toggled from an attached PC via `adb` broadcasts —
-handy for scripting an engagement or integrating with other tools:
-
-```bash
-PKG=eu.matscheko.pivot
-RCV=$PKG/.control.ControlReceiver
-
-# Configure the VPN's upstream proxy and start capturing, in one command
-adb shell am broadcast -n $RCV -a eu.matscheko.pivot.action.VPN_START \
-  --es upstream_host 127.0.0.1 --ei upstream_port 8080 --es upstream_type http
-
-adb shell am broadcast -n $RCV -a eu.matscheko.pivot.action.EGRESS_STOP
-```
-
-The control receiver is gated by `android.permission.DUMP`, which only adb/`shell` and
-the system hold — no other installed app can drive it. Config changes also reflect live
-in the app if it's open.
-
-See **[docs/adb-control.md](docs/adb-control.md)** for the full action list, every
-configuration key, examples, and the consent/timing caveats.
-
----
-
-## Troubleshooting
-
-- **Build fails with a Java/JDK version error** — you're not on JDK 17. Set
-  `JAVA_HOME` to a JDK 17 (step 2 above).
-- **`SDK location not found`** — create `local.properties` (step 1) or open the
-  project once in Android Studio.
-- **VPN starts but nothing loads** — check the upstream proxy host/port, and that the
-  proxy (Burp) is reachable from the phone and chained back to the egress address.
-- **A service stops on its own after a while** — exclude the app from battery
-  optimization (Options tab).
-
----
-
-## Building from source / contributing
-
-For the toolchain details, project layout, tests, on-device test recipes, and the
-pure-Kotlin TUN stack that replaced the last native library, see
-**[DEVELOPMENT.md](DEVELOPMENT.md)**.
+The full walkthrough — trusting Burp's CA for HTTPS, scoping which apps and domains
+get captured, and reaching the phone over Wi-Fi or USB — is in
+**[docs/pivot-setup.md](docs/pivot-setup.md)**.
 
 ---
 
