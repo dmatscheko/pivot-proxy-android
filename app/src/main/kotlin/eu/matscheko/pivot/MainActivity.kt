@@ -41,6 +41,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -57,6 +58,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -83,6 +85,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
@@ -91,6 +94,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -340,8 +344,7 @@ private fun MainScreen(
     val vpnRunning = vpn is VpnState.Running || vpn is VpnState.Starting
 
     if (showAbout) {
-        AboutScreen(onBack = { showAbout = false })
-        return
+        AboutDialog(onDismiss = { showAbout = false })
     }
 
     Scaffold(
@@ -634,14 +637,16 @@ private const val PIVOT_LICENSE =
         "terms of that license, and it comes with NO WARRANTY."
 
 private const val PIVOT_DISCLAIMER =
-    "This app captures and proxies network traffic for authorised security testing and " +
-        "development only. The author is not liable for any damage, data loss, or misuse " +
-        "arising from its use. Only use it on networks and devices you are permitted to test."
+    "For authorised security testing and development only — use it only on networks and " +
+        "devices you are permitted to test."
+
+private const val PIVOT_REPO_URL = "https://github.com/dmatscheko/pivot-proxy-android"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AboutScreen(onBack: () -> Unit) {
+private fun AboutDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     // The launcher icon is an adaptive-icon XML that painterResource can't load, so
     // composite the real installed icon to a bitmap instead (same trick as elsewhere).
     val iconBitmap = remember(context) {
@@ -659,61 +664,74 @@ private fun AboutScreen(onBack: () -> Unit) {
             "Version ${pkg.versionName} ($code)"
         }.getOrDefault("")
     }
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("About this app") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
+    Dialog(onDismissRequest = onDismiss) {
+        Card {
+            Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
+                // The info block scrolls (and is capped) so the Close button below
+                // stays pinned and reachable even on a short screen.
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 460.dp)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Image(
+                        bitmap = iconBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.size(96.dp).padding(bottom = 8.dp),
+                    )
+                    Text("Pivot Proxy", style = MaterialTheme.typography.headlineSmall)
+                    if (version.isNotEmpty()) {
+                        Text(version, style = MaterialTheme.typography.bodyMedium)
                     }
-                },
-            )
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Image(
-                bitmap = iconBitmap,
-                contentDescription = null,
-                modifier = Modifier.size(96.dp).padding(bottom = 8.dp),
-            )
-            Text("Pivot Proxy", style = MaterialTheme.typography.headlineMedium)
-            if (version.isNotEmpty()) {
-                Text(version, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "Copyright © 2026 Matscheko — built in Kotlin & Jetpack Compose",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+
+                    OutlinedButton(
+                        onClick = { uriHandler.openUri(PIVOT_REPO_URL) },
+                        // Force the link to the primary accent so it reads as a link
+                        // regardless of Material3 version (1.4+/Expressive drops this
+                        // default; matches intentions' AboutDialog).
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary,
+                        ),
+                        modifier = Modifier.padding(top = 4.dp),
+                    ) {
+                        Text("View source on GitHub")
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+                    Text(
+                        PIVOT_LICENSE,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+                    Text(
+                        PIVOT_DISCLAIMER,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onDismiss) { Text("Close") }
+                }
             }
-            Text(
-                "Copyright © 2026 Matscheko — built in Kotlin & Jetpack Compose",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-
-            Text(
-                PIVOT_LICENSE,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-
-            Text(
-                PIVOT_DISCLAIMER,
-                style = MaterialTheme.typography.bodySmall,
-                fontStyle = FontStyle.Italic,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
         }
     }
 }
