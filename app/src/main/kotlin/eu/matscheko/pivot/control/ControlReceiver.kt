@@ -12,6 +12,7 @@ import eu.matscheko.pivot.settings.SettingsRepository
 import eu.matscheko.pivot.vpn.PivotVpnService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -23,10 +24,17 @@ import kotlinx.coroutines.launch
  * gating pattern AndroidX's ProfileInstallReceiver uses.)
  *
  * Actions (under the `eu.matscheko.pivot.action.` namespace): CONFIGURE, EGRESS_START,
- * EGRESS_STOP, VPN_START, VPN_STOP. Any action may also carry configuration extras (see
- * the EXTRA_* keys); when present they are persisted *before* the start/stop runs, so a
- * single broadcast can configure-and-start. Each engine reads its settings when it
- * starts, so configure while it's stopped (or restart it) for changes to take effect.
+ * EGRESS_STOP, VPN_START, VPN_STOP, plus two read-backs — QUERY_CONFIG and STATUS. Any action
+ * may also carry configuration extras (see the EXTRA_* keys); when present they are
+ * persisted *before* the start/stop runs, so a single broadcast can configure-and-start.
+ * Each engine reads its settings when it starts, so configure while it's stopped (or
+ * restart it) for changes to take effect.
+ *
+ * Read-backs return their answer as the broadcast result data (see below):
+ *  - QUERY_CONFIG → the current settings as JSON, with the two passwords omitted.
+ *  - STATUS → `{"vpn":"…","egress":"…"}`. egress is running/starting/stopped/error; vpn
+ *    adds `permission_required` for when VpnService consent has not been granted yet
+ *    (VPN_START would be refused until it is accepted once in the app). See [ControlJson].
  *
  * The VPN only starts when consent is already granted ([VpnService.prepare] == null) —
  * the system consent dialog cannot be shown from a broadcast; grant it once in the app.
@@ -55,6 +63,12 @@ class ControlReceiver : BroadcastReceiver() {
                     ACTION_EGRESS_STOP -> start(appContext, EgressService::class.java, EgressService.ACTION_STOP)
                     ACTION_VPN_START -> status = startVpn(appContext)
                     ACTION_VPN_STOP -> start(appContext, PivotVpnService::class.java, PivotVpnService.ACTION_STOP)
+                    ACTION_QUERY_CONFIG -> status = ControlJson.configJson(SettingsRepository(appContext).settings.first())
+                    ACTION_STATUS -> status = ControlJson.statusJson(
+                        vpn = EngineStatus.vpn.get(),
+                        egress = EngineStatus.egress.get(),
+                        vpnConsentGranted = VpnService.prepare(appContext) == null,
+                    )
                     else -> status = "error: unknown action $action"
                 }
             } catch (e: Exception) {
@@ -139,6 +153,8 @@ class ControlReceiver : BroadcastReceiver() {
         const val ACTION_EGRESS_STOP = ACTION_PREFIX + "EGRESS_STOP"
         const val ACTION_VPN_START = ACTION_PREFIX + "VPN_START"
         const val ACTION_VPN_STOP = ACTION_PREFIX + "VPN_STOP"
+        const val ACTION_QUERY_CONFIG = ACTION_PREFIX + "QUERY_CONFIG"
+        const val ACTION_STATUS = ACTION_PREFIX + "STATUS"
 
         // Config extras. Strings → --es, ints → --ei, booleans → --ez, string arrays → --esa.
         private const val EXTRA_EGRESS_PORT = "egress_port"

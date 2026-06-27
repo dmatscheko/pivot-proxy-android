@@ -22,6 +22,7 @@ import eu.matscheko.pivot.NetUtils
 import eu.matscheko.pivot.Networks
 import eu.matscheko.pivot.R
 import eu.matscheko.pivot.ServerState
+import eu.matscheko.pivot.control.EngineStatus
 import eu.matscheko.pivot.settings.SettingsRepository
 import eu.matscheko.pivot.socks.AuthConfig
 import eu.matscheko.pivot.socks.Socks5Handshake
@@ -32,6 +33,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -77,6 +80,9 @@ class EgressService : LifecycleService() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        // Publish every state change process-wide so ControlReceiver's STATUS read-back
+        // can report it without binding.
+        state.onEach { EngineStatus.egress.set(it) }.launchIn(lifecycleScope)
     }
 
     override fun onBind(intent: Intent): IBinder {

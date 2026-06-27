@@ -21,6 +21,7 @@ import eu.matscheko.pivot.MainActivity
 import eu.matscheko.pivot.Networks
 import eu.matscheko.pivot.R
 import eu.matscheko.pivot.VpnState
+import eu.matscheko.pivot.control.EngineStatus
 import eu.matscheko.pivot.settings.AppSettings
 import eu.matscheko.pivot.settings.SettingsRepository
 import eu.matscheko.pivot.vpn.stack.KotlinTunStack
@@ -34,6 +35,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.net.DatagramPacket
 import java.net.DatagramSocket
@@ -109,6 +112,9 @@ class PivotVpnService : VpnService() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        // Publish every state change process-wide so ControlReceiver's STATUS read-back
+        // can report it without binding.
+        state.onEach { EngineStatus.vpn.set(it) }.launchIn(scope)
     }
 
     override fun onBind(intent: Intent): IBinder? {

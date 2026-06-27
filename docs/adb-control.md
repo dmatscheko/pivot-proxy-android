@@ -1,7 +1,8 @@
 # Controlling Pivot Proxy from adb
 
 Pivot Proxy exposes a broadcast control surface so an attached PC can **configure** both
-engines and **start/stop** them — for automation and integration with other tooling.
+engines, **start/stop** them, and **read back** their config and live status — for
+automation and integration with other tooling.
 
 Everything is driven with `adb shell am broadcast`. Configuration changes also reflect
 **live** in the app UI if it happens to be open (no restart needed).
@@ -40,6 +41,10 @@ adb shell am broadcast -n $RCV -a eu.matscheko.pivot.action.CONFIGURE \
 adb shell am broadcast -n $RCV -a eu.matscheko.pivot.action.VPN_START \
   --es upstream_host 127.0.0.1 --ei upstream_port 8080 --es upstream_type http \
   --ez dns_over_proxy true
+
+# Read back the current config (JSON; passwords omitted) and the live engine status
+adb shell am broadcast -n $RCV -a eu.matscheko.pivot.action.QUERY_CONFIG
+adb shell am broadcast -n $RCV -a eu.matscheko.pivot.action.STATUS
 ```
 
 `-n $RCV` targets the receiver explicitly; the `-a <action>` selects what to do.
@@ -55,9 +60,12 @@ adb shell am broadcast -n $RCV -a eu.matscheko.pivot.action.VPN_START \
 | `EGRESS_STOP`  | Apply any config extras, then stop the egress proxy. |
 | `VPN_START`    | Apply any config extras, then start the VPN (if consent is granted). |
 | `VPN_STOP`     | Apply any config extras, then stop the VPN. |
+| `QUERY_CONFIG` | Return the current settings as JSON (see [Reading config and status](#reading-config-and-status)). |
+| `STATUS`       | Return the live state of both engines as JSON. |
 
 Any action may carry configuration extras. They are persisted **before** the start/stop
-is performed, so a single broadcast can configure-and-start atomically.
+is performed, so a single broadcast can configure-and-start atomically. `QUERY_CONFIG` and
+`STATUS` are read-only — they ignore any extras and never change settings.
 
 ---
 
@@ -107,6 +115,52 @@ ignored, with a warning in the log.
 | --- | --- | --- | --- |
 | `start_egress_on_boot` | `--ez` | bool | |
 | `start_vpn_on_boot` | `--ez` | bool | opportunistic; only fires at boot if VPN consent is already granted |
+
+---
+
+## Reading config and status
+
+Both read-backs return their answer in the broadcast **result data** (the same channel
+the start/stop actions use for `ok` / `error: …` — see [Feedback](#feedback)).
+
+**`QUERY_CONFIG`** returns the current persisted settings as a JSON object. The keys match
+the CONFIGURE extras exactly, so a dump reads straight back into `--es/--ei/--ez` flags.
+The two passwords (`egress_pass`, `upstream_pass`) are **never** emitted.
+
+```jsonc
+{"egress_port":1080,"egress_bind":"0.0.0.0","egress_auth":false,"egress_user":"",
+ "upstream_host":"127.0.0.1","upstream_port":8080,"upstream_type":"socks5",
+ "upstream_auth":false,"upstream_user":"","dns_over_proxy":true,
+ "direct_use_underlying_dns":true,"direct_dns":"8.8.8.8","direct_dns_port":53,
+ "ipv6":false,"bypass_domains":"","app_filter_mode":"off","app_list":[],
+ "start_egress_on_boot":false,"start_vpn_on_boot":false}
+```
+
+**`STATUS`** returns just the live state of each engine — the most important, always-short
+read-back:
+
+```json
+{"vpn":"running","egress":"stopped"}
+```
+
+Each field carries one of these values:
+
+| Value | Fields | Meaning |
+| --- | --- | --- |
+| `running` | `vpn`, `egress` | The engine is up and serving. |
+| `starting` | `vpn`, `egress` | A start is in progress (transient). |
+| `stopped` | `vpn`, `egress` | Not running. For `vpn`, VpnService consent **is** granted, so adb can start it. |
+| `error` | `vpn`, `egress` | The last start attempt failed (the reason is in the `PivotControl` log). |
+| `permission_required` | `vpn` only | Off **and** Android's VPN [connection request dialog](https://developer.android.com/develop/connectivity/vpn#:~:text=the%20system%20displays%20a%20connection%20request%20dialog) (from `VpnService.prepare()`) has not been accepted yet, so `VPN_START` would be refused until it's granted once in the app. |
+
+`am broadcast` prints the result with the inner quotes backslash-escaped. To pull out
+clean JSON (e.g. to pipe into `jq`):
+
+```bash
+adb shell am broadcast -n $RCV -a eu.matscheko.pivot.action.STATUS \
+  | sed -n 's/.*data="\(.*\)"/\1/p' | sed 's/\\"/"/g'
+# {"vpn":"running","egress":"stopped"}
+```
 
 ---
 
@@ -170,9 +224,10 @@ adb logcat -s PivotControl
 
 ## Constraints (by design)
 
-- **VPN consent.** `VPN_START` only works once the Android VPN consent dialog has been
-  accepted — that dialog cannot be shown from a broadcast. Start the VPN once from the
-  app to grant it; afterwards adb can start/stop it freely. Until then `VPN_START`
+- **VPN consent.** `VPN_START` only works once Android's VPN [connection request
+  dialog](https://developer.android.com/develop/connectivity/vpn#:~:text=the%20system%20displays%20a%20connection%20request%20dialog) has
+  been accepted — that dialog cannot be shown from a broadcast. Start the VPN once from
+  the app to grant it; afterwards adb can start/stop it freely. Until then `VPN_START`
   returns `error: VPN consent not granted …`.
 - **Config is read when an engine starts.** Each engine snapshots its settings at start
   (mirroring the UI, which disables fields while an engine is running). Change config

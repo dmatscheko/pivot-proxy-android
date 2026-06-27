@@ -79,6 +79,8 @@
                 <action android:name="eu.matscheko.pivot.action.EGRESS_STOP" />
                 <action android:name="eu.matscheko.pivot.action.VPN_START" />
                 <action android:name="eu.matscheko.pivot.action.VPN_STOP" />
+                <action android:name="eu.matscheko.pivot.action.QUERY_CONFIG" />
+                <action android:name="eu.matscheko.pivot.action.STATUS" />
             </intent-filter>
         </receiver>
 
