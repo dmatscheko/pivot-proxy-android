@@ -36,11 +36,11 @@ tun↔SOCKS bridge is a userspace TCP/IP stack written in Kotlin. It uses code f
 ### Screenshots
 
 <p align="center">
-  <a href="docs/screenshots/raw/setup.jpg"><img src="docs/screenshots/setup.jpg" alt="Setup tab — status dashboard and how-to screenshot" width="30%" align="top"></a>
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="docs/screenshots/raw/vpn.jpg"><img src="docs/screenshots/vpn.jpg" alt="VPN tab — capture via upstream proxy screenshot" width="30%" align="top"></a>
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="docs/screenshots/raw/egress.jpg"><img src="docs/screenshots/egress.jpg" alt="Egress tab — on-device SOCKS5 proxy screenshot" width="30%" align="top"></a>
+  <a href="docs/screenshots/raw/setup.jpg"><img src="docs/screenshots/setup.jpg" alt="Setup tab — status dashboard and how-to screenshot" width="29%" align="top"></a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="docs/screenshots/raw/vpn.jpg"><img src="docs/screenshots/vpn.jpg" alt="VPN tab — capture via upstream proxy screenshot" width="29%" align="top"></a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="docs/screenshots/raw/egress.jpg"><img src="docs/screenshots/egress.jpg" alt="Egress tab — on-device SOCKS5 proxy screenshot" width="29%" align="top"></a>
 </p>
 
 ### Two engines
