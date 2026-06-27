@@ -7,15 +7,15 @@
 
 An Android app for penetration testing that turns the phone into a transparent
 **pivot**: it captures all device traffic through a local VPN, routes it through an
-external inspection proxy (e.g. **Burp Suite**), and sends it back into the phone's
+external interception proxy (e.g. **Burp Suite**), and sends it back into the phone's
 own SOCKS5 proxy so it finally egresses through the phone's own network interface.
 
-The result: you can inspect 100% of a device's traffic in Burp while the origin
-servers still see the **phone's** IP (same carrier/Wi-Fi network), and DNS names are
-resolved on the phone, not on the laptop running Burp.
+The result: you can inspect 100% of a device's traffic in the interception proxy while
+the origin servers still see the **phone's** IP (same carrier/Wi-Fi network), and DNS
+names are resolved on the phone, not on the laptop running the proxy.
 
 ```
-apps on phone ─▶ VPN capture ─▶ upstream proxy (Burp) ─▶ phone's egress proxy ─▶ internet
+apps on phone ─▶ VPN capture ─▶ upstream proxy (interception) ─▶ phone's egress proxy ─▶ internet
                                                             (resolves DNS on-device,
                                                              egresses via phone)
 ```
@@ -45,12 +45,12 @@ tun↔SOCKS bridge is a userspace TCP/IP stack written in Kotlin. It uses code f
 
 ### Two engines
 
+- **Capturing VPN** — a local `VpnService` that pulls all device traffic through a
+  userspace, pure-Kotlin tun↔SOCKS bridge and forwards it to your upstream interception
+  proxy, with DNS-over-SOCKS5.
 - **Egress proxy** — an on-device SOCKS5 server that finally egresses captured traffic
   through the phone's own network interface, so origin servers see the **phone's** IP
   and DNS is resolved on-device. Configurable port, bind address and auth.
-- **Capturing VPN** — a local `VpnService` that pulls all device traffic through a
-  userspace, pure-Kotlin tun↔SOCKS bridge and forwards it to your upstream inspection
-  proxy (Burp Suite), with DNS-over-SOCKS5.
 
 Running both at once **is** the pivot.
 
@@ -59,8 +59,8 @@ Running both at once **is** the pivot.
 | Tab | What it's for |
 | --- | --- |
 | **Setup** | A live status dashboard (Egress + VPN) and the pivot how-to. |
+| **VPN** | The capturing VPN: the upstream interception proxy, proxy type, DNS mode, domain bypass, and per-app capture. Master switch. |
 | **Egress** | The on-device SOCKS5 proxy that finally egresses traffic. Master switch + port/bind/auth. |
-| **VPN** | The capturing VPN: the upstream proxy (Burp Suite), proxy type, DNS mode, domain bypass, and per-app capture. Master switch. |
 | **Options** | Start the egress proxy and/or VPN capture on boot, and a shortcut to battery-optimization settings. |
 
 The Egress and VPN nav icons carry a small status dot: **green = running**,

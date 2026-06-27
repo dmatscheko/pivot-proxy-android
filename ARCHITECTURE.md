@@ -44,7 +44,7 @@ way to the egress, which resolves it on-device. That is "DNS-over-SOCKS5".
 | fake-IP pool | `198.18.0.0/15` | synthetic addresses handed out by FakeDns |
 | DNS stub | `8.8.8.8` | advertised resolver; routed `/32` into the tun |
 | egress proxy | `:1080` (default) | EgressService listen port |
-| upstream proxy | `127.0.0.1:8080` (default) | the inspection proxy (Burp) |
+| upstream proxy | `127.0.0.1:8080` (default) | the interception proxy |
 | MTU | `1500` | tun MTU |
 
 (IPv6, when enabled: tun `fdfe:dcba:9876::1/126`, netif `…::2`, default route `::/0`.)
@@ -170,10 +170,9 @@ underlying network's DNS* → (off) *manual DNS server/port*.
 
 ### Upstream proxy protocol (SOCKS5 or HTTP/S)
 
-The upstream/inspection proxy can be reached either as a **SOCKS5** proxy or as an
-**HTTP/S `CONNECT`** proxy. The latter is required for **Burp Suite**, whose proxy
-listener accepts HTTP/S proxy connections but not SOCKS5. The VPN tab exposes this as
-a *Proxy type* choice (`AppSettings.upstreamType`).
+The upstream/interception proxy can be reached either as a **SOCKS5** proxy or as an
+**HTTP/S `CONNECT`** proxy. The latter is required for **Burp Suite**. The VPN tab
+exposes this as a *Proxy type* choice (`AppSettings.upstreamType`).
 
 The stack→shim hop is plain SOCKS5, so the HTTP `CONNECT` is performed by `LocalShim`:
 

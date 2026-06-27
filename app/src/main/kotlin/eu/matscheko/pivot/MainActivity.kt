@@ -252,8 +252,8 @@ private fun PivotTheme(content: @Composable () -> Unit) {
 
 private enum class Tab(val title: String, val label: String, val icon: Int) {
     SETUP("Pivot setup", "Setup", R.drawable.ic_tab_setup),
-    EGRESS("Egress proxy", "Egress", R.drawable.ic_tab_egress),
     VPN("VPN capture", "VPN", R.drawable.ic_tab_vpn),
+    EGRESS("Egress proxy", "Egress", R.drawable.ic_tab_egress),
     OPTIONS("App options", "Options", R.drawable.ic_tab_options),
 }
 
@@ -474,7 +474,7 @@ private fun MainScreen(
                     VpnSwitchCard(vpn = vpn, onToggle = onToggleVpn)
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("Upstream proxy (e.g. Burp Suite)", style = MaterialTheme.typography.titleMedium)
+                            Text("Upstream proxy (interception proxy)", style = MaterialTheme.typography.titleMedium)
                             Text("Proxy type", style = MaterialTheme.typography.titleSmall)
                             Column(Modifier.selectableGroup()) {
                                 AuthOption(
@@ -486,7 +486,7 @@ private fun MainScreen(
                                     persist { it.copy(upstreamType = AppSettings.UPSTREAM_SOCKS5) }
                                 }
                                 AuthOption(
-                                    "HTTP/S (CONNECT) — required for Burp Suite",
+                                    "HTTP/S (CONNECT) — required for most interception proxies",
                                     upstreamType == AppSettings.UPSTREAM_HTTP,
                                     !vpnRunning,
                                 ) {
@@ -766,8 +766,8 @@ private fun StatusDashboardCard(egress: ServerState, vpn: VpnState) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Status", style = MaterialTheme.typography.titleMedium)
-            StatusRow("Egress proxy", egressText, egress is ServerState.Running)
             StatusRow("VPN capture", vpnText, vpn is VpnState.Running)
+            StatusRow("Egress proxy", egressText, egress is ServerState.Running)
         }
     }
 }
@@ -1007,9 +1007,8 @@ private fun PivotHelpCard() {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("How the pivot works", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Device traffic → VPN capture → upstream proxy (Burp Suite) → the phone's " +
-                    "own egress proxy → out the phone's interface. Names are resolved on " +
-                    "the egress side, so the origin sees the phone, not the laptop.",
+                "Device traffic → VPN capture → upstream proxy (interception proxy) → Egress proxy " +
+                    "→ out the phone's interface, so the origin sees the phone, not the laptop.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

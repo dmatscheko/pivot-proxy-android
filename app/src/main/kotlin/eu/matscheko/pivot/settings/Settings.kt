@@ -19,7 +19,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
  * Single settings model for both engines.
  *
  *  - egress*  → the on-device SOCKS5 listener (microsocks).
- *  - upstream* → the inspection/pivot proxy the VPN sends captured traffic to (e.g. Burp).
+ *  - upstream* → the interception proxy the VPN sends captured traffic to (e.g. Burp).
  *  - vpn behaviour → fake-IP DNS, direct DNS, per-app, ipv6 (from socksdroid Profile).
  */
 data class AppSettings(

@@ -91,7 +91,7 @@ ignored, with a warning in the log.
 | --- | --- | --- | --- |
 | `upstream_host` | `--es` | string | e.g. `127.0.0.1` |
 | `upstream_port` | `--ei` | int | `1`–`65535` |
-| `upstream_type` | `--es` | string | `socks5` or `http` (use `http` for Burp Suite) |
+| `upstream_type` | `--es` | string | `socks5` or `http` (`http` is required for most interception proxies) |
 | `upstream_auth` | `--ez` | bool | proxy requires username/password |
 | `upstream_user` | `--es` | string | |
 | `upstream_pass` | `--es` | string | |
